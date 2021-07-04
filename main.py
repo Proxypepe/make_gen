@@ -8,6 +8,7 @@ class AutoGen:
         self.__compiler = compiler
         self.__target = target if target else main_file.split('.')[0]
         self.__objects = ""
+        self.__all_deps = []
         self.__code: str = f"CC={self.__compiler}\n" \
                            f"TARGET={self.__target}\n"
         self.__listdir: list[str] = os.listdir()
@@ -29,30 +30,60 @@ class AutoGen:
         self.__objects += '\n\n'
         self.__code += self.__objects
 
-    def __compile_rule(self):
+    def __compile_rules(self):
         for lib in self.__included_libs:
             lib_name = lib.split('.')[0]
             code_file = self.__check_file_extension(lib_name)
-            if code_file != "" and lib in self.__listdir:
+            self.__all_deps.append(code_file)
+            if code_file != "":
                 pattern = f"{lib_name}.o: {code_file} {lib}\n" \
-                          f"\t$(CC) -c code_file\n"
+                          f"\t$(CC) -c {code_file}\n\n"
                 self.__code += pattern
 
+    def __compile_main_file(self):
+        deps = ""
+        for code_file in self.__all_deps:
+            deps += " " + code_file
+        for lib in self.__included_libs:
+            deps += " " + lib
+        code = f"{self.__target}.o: {self.__main_file} {deps}\n" \
+               f"\t$(CC) -c {self.__main_file}\n\n"
+
+        self.__code += code
+
+    def __main_compile_rule(self):
+        code = "compile: $(OBJS)\n" \
+               "\t$(CC) $(OBJS) -o $(TARGET)\n"
+        self.__code += code
+
     def __check_file_extension(self, lib: str):
+        # TODO check other folders
         extensions = ['.cpp', '.c']
         for extension in extensions:
             if f"{lib}{extension}" in self.__listdir:
                 return f"{lib}{extension}"
         return ""
 
-    def __result(self):
-        print(self.__code)
+    def __write_clean_section(self):
+        clean_part = f"\n\n.PHONY: clean\n" \
+               f"clean:\n" \
+               f"\trm *.o  {self.__target}"
+        self.__code += clean_part
+
+    def __write_test_section(self):
+        test_section = "\n\n.PHONY: run\n" \
+                       "run:\n" \
+                       f"\t./{self.__target}"
+        self.__code += test_section
 
     def run(self):
         self.__get_dep_from_main_file()
         self.__init_objects()
-        self.__compile_rule()
-        self.__result()
+        self.__main_compile_rule()
+        self.__compile_rules()
+        self.__compile_main_file()
+        self.__write_clean_section()
+        self.__write_test_section()
 
 
 def main():
