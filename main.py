@@ -5,13 +5,13 @@ import sys
 class AutoGen:
     def __init__(self, main_file: str, compiler: str = "gcc", target: str = None) -> None:
         self.__main_file: str = main_file
-        self.__compiler = compiler
-        self.__target = target if target else main_file.split('.')[0]
-        self.__objects = ""
-        self.__all_deps = []
+        self.__compiler: str = compiler
+        self.__target: str = target if target else main_file.split('.')[0]
+        self.__objects: str = ""
         self.__code: str = f"CC={self.__compiler}\n" \
                            f"TARGET={self.__target}\n"
         self.__listdir: list[str] = os.listdir()
+        self.__all_deps: list[str] = []
         self.__included_libs: list[str] = []
 
     def __get_dep_from_main_file(self):
@@ -66,7 +66,7 @@ class AutoGen:
     def __write_clean_section(self):
         clean_part = f"\n\n.PHONY: clean\n" \
                f"clean:\n" \
-               f"\trm *.o  {self.__target}"
+               f"\trm -rf *.o  {self.__target}"
         self.__code += clean_part
 
     def __write_test_section(self):
