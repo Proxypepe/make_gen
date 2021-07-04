@@ -17,7 +17,7 @@ class AutoGen:
     def __get_dep_from_main_file(self):
         with open(self.__main_file) as file:
             for line in file:
-                if '"' in line:
+                if line.startswith("#include") and '"' in line:
                     start = line.find('"') + 1
                     end = line.rfind('"')
                     self.__included_libs.append(line[start:end])
@@ -48,12 +48,11 @@ class AutoGen:
             deps += " " + lib
         code = f"{self.__target}.o: {self.__main_file} {deps}\n" \
                f"\t$(CC) -c {self.__main_file}\n\n"
-
         self.__code += code
 
     def __main_compile_rule(self):
         code = "compile: $(OBJS)\n" \
-               "\t$(CC) $(OBJS) -o $(TARGET)\n"
+               "\t$(CC) $(OBJS) -o $(TARGET)\n\n"
         self.__code += code
 
     def __check_file_extension(self, lib: str):
@@ -76,6 +75,9 @@ class AutoGen:
                        f"\t./{self.__target}"
         self.__code += test_section
 
+    def __res(self):
+        print(self.__code)
+
     def run(self):
         self.__get_dep_from_main_file()
         self.__init_objects()
@@ -84,6 +86,7 @@ class AutoGen:
         self.__compile_main_file()
         self.__write_clean_section()
         self.__write_test_section()
+        self.__res()
 
 
 def main():
