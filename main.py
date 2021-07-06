@@ -47,6 +47,13 @@ class AutoGen:
         self.__objects = f"OBJS={self.__target}.o"
         for lib in self.__included_libs:
             lib_name = lib.split('.')[0]
+            if os.sep in lib:
+                start = lib_name.rfind(os.sep) + 1
+                if self.__check_file_extension(lib_name[start:], lib_name[:start - 1]) == "":
+                    continue
+            else:
+                if self.__check_file_extension(lib_name) == "":
+                    continue
             self.__objects += f" {lib_name}.o"
         self.__objects += '\n\n'
         self.__code += self.__objects
@@ -74,11 +81,12 @@ class AutoGen:
                "\t$(CC) $(OBJS) -o $(TARGET)\n"
         self.__code += code
 
-    def __check_file_extension(self, lib: str) -> str:
+    def __check_file_extension(self, lib: str, path: str = "") -> str:
+        if path == "":
+            path = self.__current_dir
         extensions = ['.cpp', '.c']
         for extension in extensions:
-            if f"{lib}{extension}" in os.listdir(self.__current_dir):
-
+            if f"{lib}{extension}" in os.listdir(path):
                 return f"{lib}{extension}"
         return ""
 
@@ -107,6 +115,8 @@ class AutoGen:
             file.write(code)
 
     def analyze(self, file: str = ""):
+        # TODO check code files
+        # Now only headers works
         if file == "":
             file = self.__main_file
         deps = self.__get_dep_from_file(file)
