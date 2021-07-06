@@ -16,7 +16,7 @@ class AutoGen:
         self.__included_libs: list[str] = []
         self.__sub_makes = 0
 
-    def __get_dep_from_file(self, file_name: str = "") -> list:
+    def __get_dep_from_file(self, file_name: str = "", path: str = "") -> list:
         """
         Reads an input file and collect the dependencies
         Looking for preprocessor instructions '#include' with ""
@@ -24,10 +24,12 @@ class AutoGen:
         :param file_name: str
         :return: list
         """
+        if path == "":
+            path = self.__current_dir
         file_name = self.__main_file if file_name == "" else file_name
         includes_files = []
         if not os.path.exists(file_name):
-            file_name = self.__current_dir + os.sep + file_name
+            file_name = path + os.sep + file_name
         with open(file_name) as file:
             for line in file:
                 if "#include" in line and '"' in line:
@@ -60,7 +62,7 @@ class AutoGen:
 
     def __construct_compile_rules(self, deps: list, lib: str = "") -> None:
         """
-        Constructs rules for files with code
+        Constructs rules for compiling object files
 
         :return: None
         """
@@ -77,11 +79,23 @@ class AutoGen:
             self.__code += pattern
 
     def __construct_main_compile_rule(self) -> None:
+        """
+        Writes the default rule for compiling an executable file
+
+        :return: None
+        """
         code = "\ncompile: $(OBJS)\n" \
                "\t$(CC) $(OBJS) -o $(TARGET)\n"
         self.__code += code
 
     def __check_file_extension(self, lib: str, path: str = "") -> str:
+        """
+        Search for a code file with a given library name in a directory
+
+        :param lib: str - library name
+        :param path: str - path to dictionary
+        :return: str
+        """
         if path == "":
             path = self.__current_dir
         extensions = ['.cpp', '.c']
@@ -91,12 +105,23 @@ class AutoGen:
         return ""
 
     def __write_test_section(self) -> None:
+        """
+        Adds code to execute the target file
+
+        :return: None
+        """
         test_section = "\n.PHONY: run\n" \
                        "run:\n" \
                        f"\t./{self.__target}\n"
         self.__code += test_section
 
     def __check_sub_makefiles(self) -> None:
+        """
+        Checks subdirectories and creates a Makefile for each directory
+
+        :return: None
+        """
+
         for lib in self.__included_libs:
             splited_lib = lib.split(os.sep)
             if len(splited_lib) > 1:
@@ -109,14 +134,26 @@ class AutoGen:
         print(self.__code)
 
     def write_makefile(self, code: str,  path: str = "") -> None:
+        """
+        Writes code to a Makefile
+
+        :param code: str - code for Makefile
+        :param path: str - path to Makefile
+        :return: None
+        """
         if path != "":
             path += os.sep
         with open(f"{path}Makefile", 'w') as file:
             file.write(code)
 
-    def analyze(self, file: str = ""):
-        # TODO check code files
-        # Now only headers works
+    def analyze(self, file: str = "") -> str:
+        """
+        Analyzes files for dependencies
+        Recursively traversing files
+
+        :param file: str - filename to parse
+        :return: str - returns the name of the library or an empty string
+        """
         if file == "":
             file = self.__main_file
         deps = self.__get_dep_from_file(file)
@@ -131,6 +168,11 @@ class AutoGen:
             return lib
 
     def run(self) -> None:
+        """
+        Main application loop
+
+        :return: None
+        """
         self.__included_libs = self.__get_dep_from_file()
         self.__init_objects()
         self.__construct_main_compile_rule()
@@ -141,6 +183,12 @@ class AutoGen:
         self.write_makefile(self.__code)
 
     def sub_make(self, path: str) -> None:
+        """
+        Writes rules for each directory and creates a Makefile
+
+        :param path: str - path to a directory
+        :return:
+        """
         self.__sub_makes += 1
         code = f"\npath{self.__sub_makes}:\n" \
                f"\tcd {path} && $(MAKE)\n"
@@ -151,7 +199,6 @@ class AutoGen:
         for lib in self.__included_libs:
             if lib.startswith(path):
                 a.analyze(lib.split(os.sep)[-1])
-
         a.__code += a.__clean_code
         a.write_makefile(a.__code, path)
 
