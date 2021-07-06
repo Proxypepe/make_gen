@@ -9,6 +9,9 @@ class AutoGen:
         self.__target: str = target if target else main_file.split('.')[0]
         self.__objects: str = ""
         self.__code: str = f"CC={self.__compiler}\n"
+        self.__clean_code = f"\n.PHONY: clean\n" \
+                            f"clean:\n" \
+                            f"\trm -rf *.o  {self.__target}\n"
         self.__current_dir: str = os.getcwd()
         self.__included_libs: list[str] = []
         self.__sub_makes = 0
@@ -24,7 +27,7 @@ class AutoGen:
         file_name = self.__main_file if file_name == "" else file_name
         includes_files = []
         if not os.path.exists(file_name):
-            file_name = self.__current_dir + file_name
+            file_name = self.__current_dir + os.sep + file_name
         with open(file_name) as file:
             for line in file:
                 if "#include" in line and '"' in line:
@@ -79,12 +82,6 @@ class AutoGen:
                 return f"{lib}{extension}"
         return ""
 
-    def __write_clean_section(self) -> None:
-        clean_part = f"\n.PHONY: clean\n" \
-               f"clean:\n" \
-               f"\trm -rf *.o  {self.__target}\n"
-        self.__code += clean_part
-
     def __write_test_section(self) -> None:
         test_section = "\n.PHONY: run\n" \
                        "run:\n" \
@@ -113,6 +110,9 @@ class AutoGen:
         if file == "":
             file = self.__main_file
         deps = self.__get_dep_from_file(file)
+        for dep in deps:
+            if dep not in self.__included_libs:
+                self.__included_libs.append(dep)
         self.__construct_compile_rules(deps, file)
         if not deps:
             return ""
@@ -126,21 +126,23 @@ class AutoGen:
         self.__construct_main_compile_rule()
         self.analyze()
         self.__check_sub_makefiles()
-        self.__write_clean_section()
+        self.__code += self.__clean_code
         self.__write_test_section()
         self.write_makefile(self.__code)
 
     def sub_make(self, path: str) -> None:
         self.__sub_makes += 1
-        code = f"\npath{1}:\n" \
+        code = f"\npath{self.__sub_makes}:\n" \
                f"\tcd {path} && $(MAKE)\n"
+        self.__clean_code += f"\tcd {path} && $(MAKE) clean\n"
         self.__code += code
         a = AutoGen(compiler=self.__compiler)
         a.path = path
         for lib in self.__included_libs:
             if lib.startswith(path):
                 a.analyze(lib.split(os.sep)[-1])
-        a.__write_clean_section()
+
+        a.__code += a.__clean_code
         a.write_makefile(a.__code, path)
 
     @property
