@@ -1,0 +1,24 @@
+name: CI_makefile_generator
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+  
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use script
+        run: python3 main.py auto examples/main.c gcc
+
+      - name: Compile and run
+        run: |
+          cd examples/
+          make compile
+          make run
+          make clean
