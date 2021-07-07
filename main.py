@@ -6,7 +6,8 @@ class AutoGen:
     def __init__(self, main_file: str = "", compiler: str = "gcc", target: str = None) -> None:
         self.__main_file: str = main_file
         self.__compiler: str = compiler
-        self.__target: str = target if target else main_file.split('.')[0]
+        self.__check_curr_dir()
+        self.__target: str = target if target else self.__main_file.split('.')[0]
         self.__objects: str = ""
         self.__code: str = f"CC={self.__compiler}\n"
         self.__clean_code = f"\n.PHONY: clean\n" \
@@ -16,12 +17,20 @@ class AutoGen:
         self.__included_libs: list[str] = []
         self.__sub_makes = 0
 
+    def __check_curr_dir(self):
+        if os.sep in self.__main_file:
+            start = self.__main_file.rfind(os.sep) + 1
+            path = os.getcwd() + os.sep + self.__main_file[:start - 1]
+            self.__main_file = self.__main_file[start:]
+            os.chdir(path)
+
     def __get_dep_from_file(self, file_name: str = "", path: str = "") -> list:
         """
         Reads an input file and collect the dependencies
         Looking for preprocessor instructions '#include' with ""
 
         :param file_name: str
+        :param path: str
         :return: list
         """
         if path == "":
