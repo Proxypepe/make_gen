@@ -28,7 +28,6 @@ class AutoGen:
         """
         Reads an input file and collect the dependencies
         Looking for preprocessor instructions '#include' with ""
-
         :param file_name: str
         :param path: str
         :return: list
@@ -51,7 +50,6 @@ class AutoGen:
         """
         Initializes variable TARGET containing the name of the executable file
         Initializes variable OBJS that contains a list of .o files (objects)
-
         :return: None
         """
         self.__code += f"TARGET={self.__target}\n"
@@ -72,7 +70,6 @@ class AutoGen:
     def __construct_compile_rules(self, deps: list, lib: str = "") -> None:
         """
         Constructs rules for compiling object files
-
         :return: None
         """
         lib_name = lib.split('.')[0]
@@ -90,7 +87,6 @@ class AutoGen:
     def __construct_main_compile_rule(self) -> None:
         """
         Writes the default rule for compiling an executable file
-
         :return: None
         """
         code = "\ncompile: $(OBJS)\n" \
@@ -100,7 +96,6 @@ class AutoGen:
     def __check_file_extension(self, lib: str, path: str = "") -> str:
         """
         Search for a code file with a given library name in a directory
-
         :param lib: str - library name
         :param path: str - path to dictionary
         :return: str
@@ -116,7 +111,6 @@ class AutoGen:
     def __write_test_section(self) -> None:
         """
         Adds code to execute the target file
-
         :return: None
         """
         test_section = "\n.PHONY: run\n" \
@@ -127,7 +121,6 @@ class AutoGen:
     def __check_sub_makefiles(self) -> None:
         """
         Checks subdirectories and creates a Makefile for each directory
-
         :return: None
         """
 
@@ -142,10 +135,9 @@ class AutoGen:
     def res(self):
         print(self.__code)
 
-    def write_makefile(self, code: str,  path: str = "") -> None:
+    def write_makefile(self, code: str, path: str = "") -> None:
         """
         Writes code to a Makefile
-
         :param code: str - code for Makefile
         :param path: str - path to Makefile
         :return: None
@@ -155,31 +147,28 @@ class AutoGen:
         with open(f"{path}Makefile", 'w') as file:
             file.write(code)
 
-    def analyze(self, file: str = "") -> str:
+    def analyze(self, file: str = "") -> None:
         """
         Analyzes files for dependencies
         Recursively traversing files
-
         :param file: str - filename to parse
-        :return: str - returns the name of the library or an empty string
+        :return: None
         """
         if file == "":
             file = self.__main_file
+        print(f"filename: {file}")
         deps = self.__get_dep_from_file(file)
+        print(f"deps {deps}")
+        self.__construct_compile_rules(deps, file)
         for dep in deps:
             if dep not in self.__included_libs:
                 self.__included_libs.append(dep)
-        self.__construct_compile_rules(deps, file)
-        if not deps:
-            return ""
         for lib in deps:
             self.analyze(lib)
-            return lib
 
     def run(self) -> None:
         """
         Main application loop
-
         :return: None
         """
         self.__included_libs = self.__get_dep_from_file()
@@ -194,7 +183,6 @@ class AutoGen:
     def sub_make(self, path: str) -> None:
         """
         Writes rules for each directory and creates a Makefile
-
         :param path: str - path to a directory
         :return:
         """
