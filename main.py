@@ -1,5 +1,5 @@
 import os
-import sys
+import argparse
 
 
 class AutoGen:
@@ -9,6 +9,8 @@ class AutoGen:
         self.__check_curr_dir()
         self.__target: str = target if target else self.__main_file.split('.')[0]
         self.__objects: str = ""
+        self.__flags: list[str] = []
+        self.__flags_string = ""
         self.__code: str = f"CC={self.__compiler}\n"
         self.__clean_code = f"\n.PHONY: clean\n" \
                             f"clean:\n" \
@@ -81,7 +83,7 @@ class AutoGen:
             if code_file == lib:
                 lib = ""
             pattern = f"\n{lib_name}.o: {code_file} {lib} {deps_string}\n" \
-                      f"\t$(CC) -c {code_file}\n"
+                      f"\t$(CC){self.__flags_string} -c {code_file}\n"
             self.__code += pattern
 
     def __construct_main_compile_rule(self) -> None:
@@ -89,8 +91,8 @@ class AutoGen:
         Writes the default rule for compiling an executable file
         :return: None
         """
-        code = "\ncompile: $(OBJS)\n" \
-               "\t$(CC) $(OBJS) -o $(TARGET)\n"
+        code = f"\ncompile: $(OBJS)\n" \
+               f"\t$(CC){self.__flags_string} $(OBJS) -o $(TARGET)\n"
         self.__code += code
 
     def __check_file_extension(self, lib: str, path: str = "") -> str:
@@ -117,6 +119,14 @@ class AutoGen:
                        "run:\n" \
                        f"\t./{self.__target}\n"
         self.__code += test_section
+
+    def __write_flags(self) -> None:
+        flags = 'FLAGS='
+        for flag in self.__flags:
+            flags += f' {flag}'
+        flags += '\n'
+        self.__flags_string = ' $(FLAGS)'
+        self.__code += flags
 
     def __check_sub_makefiles(self) -> None:
         """
@@ -173,6 +183,8 @@ class AutoGen:
         """
         self.__included_libs = self.__get_dep_from_file()
         self.__init_objects()
+        if self.__flags:
+            self.__write_flags()
         self.__construct_main_compile_rule()
         self.analyze()
         self.__check_sub_makefiles()
@@ -199,6 +211,9 @@ class AutoGen:
         a.__code += a.__clean_code
         a.write_makefile(a.__code, path)
 
+    def add_flags(self, flags: list):
+        self.__flags = flags
+
     @property
     def path(self) -> str:
         return self.__current_dir
@@ -217,8 +232,33 @@ class AutoGen:
 
 
 def main():
-    if sys.argv[1] == "auto" and sys.argv[2] and sys.argv[3]:
-        auto = AutoGen(sys.argv[2], sys.argv[3])
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-m', '--mode', type=str, required=True,
+                        help="")
+
+    parser.add_argument('-t', '--target', type=str, required=True,
+                        help="C or C++ file with main function")
+
+    parser.add_argument('-c', '--compiler', type=str, action='store', required=False,
+                        default='gcc', help="Compiler selection")
+
+    parser.add_argument('-o', '--obj', type=str, action='store', required=False,
+                        help="Compiler selection")
+
+    parser.add_argument('-f', '--flags', required=False,
+                        nargs='*', help="Spacial compilation flags")
+
+    args = parser.parse_args()
+
+    if args.mode == "auto" and args.target:
+        target_file = args.target
+        program_compiler = args.compiler
+        object_file = args.obj
+
+        auto = AutoGen(main_file=target_file, compiler=program_compiler, target=object_file)
+        if args.flags:
+            auto.add_flags(args.flags)
         auto.run()
 
 
