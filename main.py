@@ -247,7 +247,7 @@ def main():
                         default='gcc', help="Compiler selection")
 
     parser.add_argument('-o', '--obj', type=str, action='store', required=False,
-                        help="Compiler selection")
+                        help="Result executable file")
 
     parser.add_argument('-f', '--flags', required=False,
                         nargs='*', help="Spacial compilation flags")
