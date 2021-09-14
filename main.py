@@ -1,5 +1,6 @@
 import os
 import argparse
+import pathlib
 
 
 class AutoGen:
@@ -20,6 +21,7 @@ class AutoGen:
         self.__included_libs: list[str] = []
         self.__included_libs_all: list[str] = []
         self.__written_lib: list[str] = []
+        self.__written_dirs = []
         self.__sub_makes = 0
 
     def __check_curr_dir(self):
@@ -41,8 +43,11 @@ class AutoGen:
             path = self.__current_dir
         file_name = self.__main_file if file_name == "" else file_name
         includes_files = []
-        if not os.path.exists(file_name):
+
+        if not pathlib.Path(file_name).exists():
+            print(path)
             file_name = path + os.sep + file_name
+            print("fff", file_name)
         with open(file_name) as file:
             for line in file:
                 if "#include" in line and '"' in line:
@@ -51,15 +56,19 @@ class AutoGen:
                     includes_files.append(line[start:end])
         return includes_files
 
-    def __get_all_deps(self, file=""):
+    def __get_all_deps(self, file="", path=""):
         if file == "":
             file = self.__main_file
-        deps = self.__get_dep_from_file(file)
+        print(f"file: {file} path: {path}")
+        if path == "":
+            start = file.rfind(os.sep) + 1
+            path = file[:start]
+        print(f"all file: {file} path: {path}")
+        deps = self.__get_dep_from_file(file, path)
         for dep in deps:
             if dep not in self.__included_libs_all:
                 self.__included_libs_all.append(dep)
-        for lib in deps:
-            self.__get_all_deps(lib)
+            self.__get_all_deps(dep, path)
 
     def __init_objects(self) -> None:
         """
@@ -151,7 +160,9 @@ class AutoGen:
                 path = ""
                 for part in splited_lib[:-1]:
                     path += part + os.sep
-                self.sub_make(path=path)
+                if path not in self.__written_dirs:
+                    self.__written_dirs.append(path)
+                    self.sub_make(path=path)
 
     def res(self):
         print(self.__code)
@@ -177,13 +188,13 @@ class AutoGen:
         """
         if file == "":
             file = self.__main_file
-        deps = self.__get_dep_from_file(file)
-        self.__construct_compile_rules(deps, file)
-        for dep in deps:
-            if dep not in self.__included_libs:
-                self.__included_libs.append(dep)
-        for lib in deps:
-            self.analyze(lib)
+        if os.sep not in file:
+            deps = self.__get_dep_from_file(file)
+            self.__construct_compile_rules(deps, file)
+            for dep in deps:
+                if dep not in self.__included_libs:
+                    self.__included_libs.append(dep)
+                self.analyze(dep)
 
     def run(self) -> None:
         """
