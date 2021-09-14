@@ -45,9 +45,7 @@ class AutoGen:
         includes_files = []
 
         if not pathlib.Path(file_name).exists():
-            print(path)
             file_name = path + os.sep + file_name
-            print("fff", file_name)
         with open(file_name) as file:
             for line in file:
                 if "#include" in line and '"' in line:
@@ -59,11 +57,9 @@ class AutoGen:
     def __get_all_deps(self, file="", path=""):
         if file == "":
             file = self.__main_file
-        print(f"file: {file} path: {path}")
         if path == "":
             start = file.rfind(os.sep) + 1
             path = file[:start]
-        print(f"all file: {file} path: {path}")
         deps = self.__get_dep_from_file(file, path)
         for dep in deps:
             if dep not in self.__included_libs_all:
