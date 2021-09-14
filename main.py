@@ -8,15 +8,18 @@ class AutoGen:
         self.__compiler: str = compiler
         self.__check_curr_dir()
         self.__target: str = target if target else self.__main_file.split('.')[0]
-        self.__objects: str = ""
+        self.__objects: str = f"OBJS={self.__target}.o"
         self.__flags: list[str] = []
         self.__flags_string = ""
-        self.__code: str = f"CC={self.__compiler}\n"
+        self.__code: str = f"CC={self.__compiler}\n" \
+                           f"TARGET={self.__target}\n"
         self.__clean_code = f"\n.PHONY: clean\n" \
                             f"clean:\n" \
                             f"\trm -rf *.o  {self.__target}\n"
         self.__current_dir: str = os.getcwd()
         self.__included_libs: list[str] = []
+        self.__included_libs_all: list[str] = []
+        self.__written_lib: list[str] = []
         self.__sub_makes = 0
 
     def __check_curr_dir(self):
@@ -48,15 +51,24 @@ class AutoGen:
                     includes_files.append(line[start:end])
         return includes_files
 
+    def __get_all_deps(self, file=""):
+        if file == "":
+            file = self.__main_file
+        deps = self.__get_dep_from_file(file)
+        for dep in deps:
+            if dep not in self.__included_libs_all:
+                self.__included_libs_all.append(dep)
+        for lib in deps:
+            self.__get_all_deps(lib)
+
     def __init_objects(self) -> None:
         """
         Initializes variable TARGET containing the name of the executable file
         Initializes variable OBJS that contains a list of .o files (objects)
         :return: None
         """
-        self.__code += f"TARGET={self.__target}\n"
-        self.__objects = f"OBJS={self.__target}.o"
-        for lib in self.__included_libs:
+        self.__get_all_deps()
+        for lib in self.__included_libs_all:
             lib_name = lib.split('.')[0]
             if os.sep in lib:
                 start = lib_name.rfind(os.sep) + 1
@@ -66,8 +78,7 @@ class AutoGen:
                 if self.__check_file_extension(lib_name) == "":
                     continue
             self.__objects += f" {lib_name}.o"
-        self.__objects += '\n\n'
-        self.__code += self.__objects
+        self.__code += f"{self.__objects}\n\n"
 
     def __construct_compile_rules(self, deps: list, lib: str = "") -> None:
         """
@@ -76,7 +87,7 @@ class AutoGen:
         """
         lib_name = lib.split('.')[0]
         code_file = self.__check_file_extension(lib_name)
-        if code_file != "":
+        if code_file != "" and lib_name not in self.__written_lib:
             deps_string = ""
             for dep in deps:
                 deps_string += " " + dep
@@ -85,6 +96,7 @@ class AutoGen:
             pattern = f"\n{lib_name}.o: {code_file} {lib} {deps_string}\n" \
                       f"\t$(CC){self.__flags_string} -c {code_file}\n"
             self.__code += pattern
+            self.__written_lib.append(lib_name)
 
     def __construct_main_compile_rule(self) -> None:
         """
@@ -133,7 +145,6 @@ class AutoGen:
         Checks subdirectories and creates a Makefile for each directory
         :return: None
         """
-
         for lib in self.__included_libs:
             splited_lib = lib.split(os.sep)
             if len(splited_lib) > 1:
@@ -166,9 +177,7 @@ class AutoGen:
         """
         if file == "":
             file = self.__main_file
-        print(f"filename: {file}")
         deps = self.__get_dep_from_file(file)
-        print(f"deps {deps}")
         self.__construct_compile_rules(deps, file)
         for dep in deps:
             if dep not in self.__included_libs:
@@ -185,8 +194,8 @@ class AutoGen:
         self.__init_objects()
         if self.__flags:
             self.__write_flags()
-        self.__construct_main_compile_rule()
         self.analyze()
+        self.__construct_main_compile_rule()
         self.__check_sub_makefiles()
         self.__code += self.__clean_code
         self.__write_test_section()
